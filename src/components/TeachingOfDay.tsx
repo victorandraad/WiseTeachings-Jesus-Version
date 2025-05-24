@@ -1,59 +1,118 @@
 import React, { useEffect, useState } from 'react'
-import { Teaching } from '../data/teachings'
+import { BiblicalTeaching } from '../data/biblicalTeachings';
+import { getRandomTeaching } from '../services/geminiService';
 
-type Props = {
-    teachings: Teaching[];
+// Componente de erro
+const ErrorFallback: React.FC<{ error: Error; resetError: () => void }> = ({ error, resetError }) => (
+  <div className="error-container" style={{ padding: '1rem', textAlign: 'center' }}>
+    <h3>Ops! Algo deu errado</h3>
+    <p>Não se preocupe, você ainda pode ver outros ensinamentos.</p>
+    <button 
+      onClick={resetError}
+      style={{
+        marginTop: '1rem',
+        padding: '0.5rem 1rem',
+        backgroundColor: '#000000',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer'
+      }}
+    >
+      Tentar Novamente
+    </button>
+  </div>
+);
+
+const TeachingOfDay: React.FC = () => {
+  const [todaysTeaching, setTodaysTeaching] = useState<BiblicalTeaching | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchNewTeaching = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const teaching = await getRandomTeaching();
+      setTodaysTeaching(teaching);
+    } catch (err) {
+      console.error('Error fetching teaching:', err);
+      setError(err instanceof Error ? err : new Error('Erro ao carregar ensinamento'));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const TeachingOfDay: React.FC<Props> = ({ teachings }) => {
-    const [todaysTeaching, setTodaysTeaching] = useState<Teaching | null>(null);
-  
-    // Função para gerar índice aleatório
-    const getRandomIndex = (max: number): number => {
-      return Math.floor(Math.random() * max)
-    };
+  // Fetch initial teaching when component mounts
+  useEffect(() => {
+    fetchNewTeaching();
+  }, []);
 
-    //Função para selecionar um novo ensinamento aleatorio
-    const selectRandomTeaching = () => {
-      if (teachings.length > 0) {
-        const randomIndex = getRandomIndex(teachings.length);
-        setTodaysTeaching(teachings[randomIndex]);
-      }
-    };
+  const resetError = () => {
+    setError(null);
+    fetchNewTeaching();
+  };
 
-    // Seleciona um ensinamento aleatorio inicial quando o componente carrega
-    useEffect(() => {
-      selectRandomTeaching();
-    }, [teachings]);
+  if (error) {
+    return <ErrorFallback error={error} resetError={resetError} />;
+  }
 
-    if (!todaysTeaching) return <div>Carregando...</div>
-
+  if (isLoading) {
     return (
-      <div className='teaching-container'>
-          <h3 className="teaching-title">"{todaysTeaching.title}"</h3>
-          <cite>- {todaysTeaching.author}</cite>
-          {/* coloque uma linha cinza separando os conteudos aqui */}
-          <hr style={{ border: '1px solid #ccc', margin: '1rem 0' }} />
-          <blockquote>
-              {todaysTeaching.content}
-          </blockquote>
-          <button 
-              onClick={selectRandomTeaching}
-              style={{
-                  marginTop: '1rem',
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#000000',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-              }}
-          >
-              Mostrar Outro Ensinamento
-          </button>
+      <div className="loading-container" style={{ padding: '1rem', textAlign: 'center' }}>
+        <p>Carregando ensinamento...</p>
       </div>
-  )
-}
+    );
+  }
 
+  if (!todaysTeaching) {
+    return (
+      <div className="no-teaching-container" style={{ padding: '1rem', textAlign: 'center' }}>
+        <p>Nenhum ensinamento disponível no momento.</p>
+        <button 
+          onClick={fetchNewTeaching}
+          style={{
+            marginTop: '1rem',
+            padding: '0.5rem 1rem',
+            backgroundColor: '#000000',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Tentar Novamente
+        </button>
+      </div>
+    );
+  }
 
-export default TeachingOfDay
+  return (
+    <div className='teaching-container' style={{ padding: '1rem' }}>
+      <h3 className="teaching-title">"{todaysTeaching.title}"</h3>
+      <cite>- {todaysTeaching.author}</cite>
+      {/* coloque uma linha cinza separando os conteudos aqui */}
+      <hr style={{ border: '1px solid #ccc', margin: '1rem 0' }} />
+      <blockquote>
+        {todaysTeaching.content}
+      </blockquote>
+      <cite>{todaysTeaching.bibleReference}</cite>
+      <button 
+        onClick={fetchNewTeaching}
+        style={{
+          marginTop: '1rem',
+          padding: '0.5rem 1rem',
+          backgroundColor: '#000000',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer'
+        }}
+      >
+        Mostrar Outro Ensinamento
+      </button>
+    </div>
+  );
+};
+
+export default TeachingOfDay;
